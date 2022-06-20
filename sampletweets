@@ -1,0 +1,214 @@
+---
+title: "sample tweets"
+output: html_document
+---
+
+
+
+```{r authentication}
+Sys.setenv(RSTUDIO_PANDOC="C:/Program Files/RStudio/bin/pandoc")
+library(lubridate)
+library(here)
+#here()
+now()
+library(rtweet)
+library(tidytext)
+# plotting and pipes - tidyverse!
+library(ggplot2)
+library(dplyr)
+library(rtweet)
+api_key             <- "w1sGzlcWQ48PN7TedgePbu93M"
+api_secret_key      <- "D8IwMWecSoqDa3TeBkonLOqkt05OwHtnc4LnEfbtVVz8PoZrdo"
+access_token        <- "49939424-XHih1VGbJJ2oHGjXBCabIjFb5vo94bgw7u8iSO37v"
+access_token_secret <- "mqhBA0prdqoZF2lGSF9lirvSIfZKMLD3g8DlJmieCx878"
+## authenticate via web browser
+token <- create_token(
+  app = "rstatsjournalismresearch",
+  consumer_key = api_key,
+  consumer_secret = api_secret_key,
+  access_token = access_token,
+  access_secret = access_token_secret)
+get_token()
+```
+
+
+```{r}
+writetobig=function(df, dfnameinbq, append=TRUE){
+   insert_upload_job("twittergeolocation-299516", "cleanerupper", dfnameinbq, df, 
+                     create_disposition = "CREATE_IF_NEEDED",
+                     write_disposition = "WRITE_APPEND")
+}
+```
+
+```{r samplingtweets}
+#rstats_tweets <- search_tweets(q = "#rstats", n = 500)
+#reference=search_tweets(n=100)
+#covid=search_tweets(q = "covid",n=100)
+#covid=search_tweets(q = "covid",n=1000)
+#corona=search_tweets(q = "covid",n=1000)
+#virus=search_tweets(q = "virus",n=10)     
+library(lubridate)
+library(foreign)
+#sterms=c("корона","Ковид","covid","corona","新冠病毒")
+sterms=c("corona","coronavirus","covid","coronahoax","vaccine","vaxx","billgates","plandemic","billgates","heat","pump","waerme","pumpe","ukraine","ukrain","putin","war")
+#g_terms<-search_fullarchive("#rstats", n = 300, env_name = "research",fromDate = "201401010000", toDate = "201401312359")
+#rt <- search_30day("twitnovation", n = 300, env_name = "twitnovation"  )
+ii=1
+for(tt in sterms){
+  
+   nnn=now()
+   nnn=gsub(" ","_",nnn)
+   nnn=gsub("-","_",nnn)
+   nnn=gsub(":","_",nnn)
+  
+    
+  
+  # firehose
+  #sres <- stream_tweets( timeout=10)
+  #name=paste0("../data/tweetstream/stream",nnn,".txt")
+  #print(name)
+  #dput(sres, file = name, control = c("keepNA", "keepInteger", "showAttributes"))
+      
+  ## Search Us specifically
+  #sres=search_tweets(q = tt,n=100,geocode = lookup_coords("usa"),retryonratelimit = TRUE)
+  #name=paste0("../data/tweets/USA_term",tt,"",nnn,".txt")
+  #print(name)
+  #dput(sres, file = name, control = c("keepNA", "keepInteger", "showAttributes"))
+  
+  # Search worldwide
+  #tt="covid"
+   
+  #tt="coronavirus"  
+  #rr=rate_limit(query = "search_tweets")
+  #while( rr$reset_at>now() ){
+  #   Sys.sleep(60*15)
+  #}
+  
+  
+  
+  
+    trytweets=function(term){
+      # if we exceed twitter rate limits an error can emerge. We use tryCatch to deal with this
+      out <- tryCatch(
+          {   res=search_tweets(q = term,n=17999, retryonratelimit = TRUE)
+              return(res)
+          },
+          error=function(cond) {
+              #message(paste("Something went wrong:"))
+              #message("Here's the original error message:")
+              #message(cond)
+              # Choose a return value in case of error
+              return(NULL)
+          },
+          warning=function(cond) {
+              #message(paste("A warning:"))
+              #message("Here's the original warning message:")
+              #message(cond)
+              # Choose a return value in case of warning
+              return(NULL)
+          },
+          finally={
+          #message("Good bye")
+          }
+      )
+      print(out)
+      return(out)
+    }
+    
+    #sres=
+    sres=trytweets(tt)
+    #is.null(gggag)
+    #print(gag)
+    while(is.null(sres)){
+      
+      # Let's wait a while
+      Sys.sleep(60*5)
+      
+      print("Wait 5 mins....")
+      
+      # Let's try again
+      sres=trytweets(tt)
+    }
+    sres$tweetsample_label<- paste(tt, nnn, sep="")
+  
+  #sres=search_tweets(q = tt,n=10000, retryonratelimit = TRUE)
+  #server="Z:/projects/watsonh2020/live/corona"
+  
+  
+  #name=paste0(server,"/data/timelines/climatehoax",nnn,".txt")  
+    
+  #name=paste0(server,"/data/tweets/term",tt,"",nnn,".txt")
+  #print(name)
+  #dput(sres, file = name, control = c("keepNA", "keepInteger", "showAttributes"))
+  
+  #ii=ii+1
+    
+    
+  # cleaning 
+    cf<- sres %>% select(-symbols,-urls_url,-urls_t.co,-urls_expanded_url,
+                          -ext_media_url,-ext_media_t.co,-ext_media_expanded_url,
+                          -media_url,-media_t.co,-media_expanded_url,-media_type,-mentions_user_id,-mentions_screen_name,-geo_coords,
+                          -bbox_coords,-coords_coords,-profile_image_url,-profile_background_url,-profile_banner_url, -display_text_width) %>%
+              arrange(created_at)
+  cleanselect= c("created_at", "bbox_coords",
+                   "user_id","status_id","text","hashtags","location",
+                   "retweet_count","quote_count","reply_count",
+                   "lng","lat","lang","coords_lat","coords_lng","geo_lat","geo_lng",
+                   "lat1","lat2","lat3","lat4","lng1","lng2","lng3","lng4","tweetsample_label")
+  cf=cf %>% lat_lng()
+    
+    if("coords_coords" %in% names(cf)){
+      cf=cf %>%  rowwise() %>%mutate(coords_lat=coords_coords[2] )
+      cf=cf %>%  rowwise() %>%mutate(coords_lng=coords_coords[1] )
+    }  else{
+      cf=cf %>%  rowwise() %>%mutate(coords_lat=NA )
+      cf=cf %>%  rowwise() %>%mutate(coords_lng=NA )
+    }
+    
+    
+    if("geo_coords" %in% names(cf)){
+      cf=cf %>%  rowwise() %>%mutate(geo_lat=geo_coords[2] )
+      cf=cf %>%  rowwise() %>%mutate(geo_lng=geo_coords[1] )
+    }  else{
+      cf=cf %>%  rowwise() %>%mutate(geo_lat=NA )
+      cf=cf %>%  rowwise() %>%mutate(geo_lng=NA )
+    }
+    
+    if("bbox_coords" %in% names(cf)){
+      #cf=cf  %>%mutate(bbox_coords=as.character(bbox_coords))
+      cf=cf %>%  rowwise() %>%mutate(lng1=bbox_coords[1],
+                                     lng2=bbox_coords[2],
+                                     lng3=bbox_coords[3],
+                                     lng4=bbox_coords[4],
+                                     
+                                     lat1=bbox_coords[5],
+                                     lat2=bbox_coords[6],
+                                     lat3=bbox_coords[7],
+                                     lat4=bbox_coords[8],
+                                     )
+      
+    }   else{
+      cf=cf %>%  rowwise() %>%mutate(lng1=NA,
+                                     lng2=NA,
+                                     lng3=NA,
+                                     lng4=NA,
+                                     
+                                     lat1=NA,
+                                     lat2=NA,
+                                     lat3=NA,
+                                     lat4=NA,
+                                     )
+    }
+  
+    cf=cf %>% select(all_of(cleanselect))
+   
+    usercf=cf %>% select(user_id,location,matches("^(lat|lng)"))
+    tweetcf=cf %>% select(created_at,status_id,text,lang,
+                          user_id, coords_lat,coords_lng,geo_lat,geo_lng,
+                          retweet_count,quote_count,reply_count,tweetsample_label)
+    
+    
+    #writing to bigquery
+    writetobig(tweetcf, "tweets")
+    writetobig(usercf, "users")
+}
